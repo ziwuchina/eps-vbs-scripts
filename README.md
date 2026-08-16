@@ -1,10 +1,22 @@
+---
+AIGC:
+    Label: "1"
+    ContentProducer: 001191440300708461136T1XGW3
+    ProduceID: 95ce5665a2763fbde4f792b4da682b54_3f954b05997f11f1a98a525400f8a581
+    ReservedCode1: cDAmQ+Oe1kd8sQpfvuPgxY6RZbQc2Qz76XblTWYFMqpj6VovGt7KZOXigH78K/Ss3SUYY6+BmxSSLNBokcDq1HDWKgh+F6uOnMnyejoqz6pJntKUh+b5YhE/1xRk4I1cmZQRUYSo7FQW3cqRrFSkd3t6IjHL11PtLO3a/ztxPcweyockXOqMeYp3g+k=
+    ContentPropagator: 001191440300708461136T1XGW3
+    PropagateID: 95ce5665a2763fbde4f792b4da682b54_3f954b05997f11f1a98a525400f8a581
+    ReservedCode2: cDAmQ+Oe1kd8sQpfvuPgxY6RZbQc2Qz76XblTWYFMqpj6VovGt7KZOXigH78K/Ss3SUYY6+BmxSSLNBokcDq1HDWKgh+F6uOnMnyejoqz6pJntKUh+b5YhE/1xRk4I1cmZQRUYSo7FQW3cqRrFSkd3t6IjHL11PtLO3a/ztxPcweyockXOqMeYp3g+k=
+---
+
 # EPS VBS 脚本库
 
 EPS2020 顺德基础地理测绘专版（云舟P）的 VBS 脚本集合，用于测绘业务提效。
 
-本仓库沉淀了两类资产：
+本仓库沉淀了三类资产：
 1. **可直接使用的脚本**（如 `导出全部属性.vbs`）
 2. **EPS VBS 脚本编写指南**（踩坑经验 + 标准写法，见下文「EPS VBS 脚本编写指南」）
+3. **官方 API 参考**（从 EPS 官方 CHM 帮助文档提取的完整 API 参考，见下文「官方 API 参考」）
 
 > 环境：EPS2020 顺德基础地理测绘专版（云舟P），脚本目录 `D:\EPS2020顺德基础地理测绘专版云舟P\DeskTop\顺德基础测绘\玮哥专用脚本`
 
@@ -19,6 +31,7 @@ EPS2020 顺德基础地理测绘专版（云舟P）的 VBS 脚本集合，用于
   - [二、必须规避（坑）](#二必须规避坑)
   - [三、调试与验证](#三调试与验证)
   - [四、API 速查表](#四api-速查表)
+- [官方 API 参考](#官方-api-参考)
 
 ---
 
@@ -203,6 +216,29 @@ EPS 脚本「点了没反应」排查两步法：
 
 ---
 
+## 官方 API 参考
+
+从 EPS 官方 CHM 帮助文档（EpsScipt-20161030.chm）中提取整理的完整 API 参考文档，覆盖 **8 个对象、571 个 API 条目**，按官方文档分类组织：
+
+| 对象 | 条目数 | 分类 |
+|------|--------|------|
+| **SSProcess** | 428 | 图形编辑操作、地模处理、工程管理函数、角度函数、数据检查、数据库操作、数据整理、数据转换、图幅操作、外部函数、系统设置、选择集操作、坐标转换函数、数学函数、系统设置函数、系统函数 |
+| **Function** | 30 | 系统消息函数 |
+| **SSView** | 23 | 屏幕绘制函数 |
+| **SSArray** | 10 | 数组函数 |
+| **SSParmeter** | 11 | 共享参数函数 |
+| **SSFunc** | 36 | 扩展函数库 |
+| **SSProject** | 32 | 工程管理函数 |
+| **常用脚本函数** | 1 | GetAllFiles |
+
+每个条目包含：**函数名、功能说明、语法、参数说明（含属性字段表）、详细说明、示例代码**。
+
+- [EPS 脚本 API 参考（完整文档）](docs/EPS脚本API参考.md)
+
+> 该文档可作为「EPS VBS 脚本编写指南」中 API 速查表的完整补充，覆盖全部官方 API 的语法与参数细节。
+
+---
+
 ## 常见问题
 
 **Q：脚本点了没反应？**
@@ -213,3 +249,4 @@ A：确认用的是全属性版（v4）。旧版只动态枚举选中要素实�
 
 **Q：选择集模式导不出东西？**
 A：确认在 EPS 中已框选要素；选择集模式不清空选择，直接读取当前系统选择。
+*（内容由AI生成，仅供参考）*

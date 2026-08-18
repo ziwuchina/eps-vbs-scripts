@@ -1,17 +1,30 @@
 ' ============================================================
-' 导出全部属性.vbs（全属性版 v4）
-' 功能：导出所选要素的全部属性（基本属性 + 全量扩展属性）
+' 导出全部属性.vbs（全属性版 v5）
+' 功能：导出所选要素的全部属性（基本属性 + 全量扩展属性 + 楼层表属性）
 ' 支持：选择集 / 全部范围，POINT / LINE / AREA / NOTE / 全部
-' 扩展属性：硬编码全量清单 + MemoData 动态枚举合并
-' 取值：优先 MemoData（不带括号），无则 GetSelGeoValue（带括号）
-' 说明：仅用最基础 VBScript 语法，不依赖任何 COM 对象
+' v4：硬编码全量清单 + MemoData 动态枚举 + 双通道取值
+' v5：新增通过 ADO 读取当前工程 EDB 的 [FC_楼层信息属性表]，
+'      按 FeatureGUID 匹配合并楼层信息（109 字段），自动去重
+' 说明：仅用最基础 VBScript 语法，不依赖 Scripting.Dictionary 等
 ' ============================================================
 
+' ---- 楼层表全局数据（LoadFloorTable 填充）----
+Dim floorLoaded
+Dim floorCount
+Dim floorFieldCount
+Dim floorOutCount
+Dim floorFieldNames(200)
+Dim floorGuids(300)
+Dim floorValues(300, 200)
+Dim floorOutNames(200)
+Dim floorOutCols(200)
+
 Sub OnClick()
-    MsgBox "脚本已启动，开始执行"
+    MsgBox "脚本已启动，开始执行（v5 支持楼层表合并）"
     SSProcess.ClearInputParameter
     SSProcess.AddInputParameter "要素类型", "全部", 0, "POINT,LINE,AREA,NOTE,全部", ""
     SSProcess.AddInputParameter "导出范围", "选择集", 0, "选择集,全部", ""
+    SSProcess.AddInputParameter "合并楼层表属性", "是", 0, "是,否", ""
     SSProcess.AddInputParameter "输出文件", "C:\全部属性导出.csv", 0, "", ""
     res = SSProcess.ShowInputParameterDlg("导出全部属性")
     If res = 0 Then
@@ -20,6 +33,7 @@ Sub OnClick()
     SSProcess.UpdateScriptDlgParameter 1
     objType = SSProcess.GetInputParameter("要素类型")
     outRange = SSProcess.GetInputParameter("导出范围")
+    mergeFloor = SSProcess.GetInputParameter("合并楼层表属性")
     outPath = SSProcess.GetInputParameter("输出文件")
     If outPath = "" Then
         MsgBox "请填写输出文件路径"
@@ -67,34 +81,165 @@ Sub OnClick()
     attrNames = Split(allAttrStr, "|")
     attrCount = UBound(attrNames) + 1
 
+    ' v5：合并楼层表属性（成功则填充 floorOutNames / floorOutCount）
+    If mergeFloor = "是" Then
+        LoadFloorTable allAttrStr
+    End If
+
     Dim fso, outputFile
     Set fso = CreateObject("Scripting.FileSystemObject")
     Set outputFile = fso.CreateTextFile(outPath, True)
 
+    ' 表头：基本属性 + 扩展属性 + 楼层表字段
     Dim header, j
     header = "ID,编码,图层,类型,颜色,面积(㎡),长度(m),注记文字"
     For j = 0 To attrCount - 1
         header = header & "," & attrNames(j)
     Next
+    If floorLoaded = 1 Then
+        For j = 0 To floorOutCount - 1
+            header = header & "," & floorOutNames(j)
+        Next
+    End If
     outputFile.WriteLine header
 
-    Dim line
+    Dim line, featureGuid
     For i = 0 To geoCount - 1
         line = CsvEscape(SSProcess.GetSelGeoValue(i, "SSObj_ID")) & "," & CsvEscape(SSProcess.GetSelGeoValue(i, "SSObj_Code")) & "," & CsvEscape(SSProcess.GetSelGeoValue(i, "SSObj_LayerName")) & "," & "地物" & "," & CsvEscape(SSProcess.GetSelGeoValue(i, "SSObj_Color")) & "," & CsvEscape(SSProcess.GetSelGeoValue(i, "SSObj_Area")) & "," & CsvEscape(SSProcess.GetSelGeoValue(i, "SSObj_Length")) & "," & ""
         memoData = SSProcess.GetSelGeoValue(i, "SSObj_MemoData")
         line = line & BuildExtLine(i, memoData, attrNames, attrCount, 0)
+        featureGuid = GetAttrValue(memoData, "FeatureGUID")
+        If featureGuid = "" Then
+            featureGuid = SSProcess.GetSelGeoValue(i, "[FeatureGUID]")
+        End If
+        line = line & BuildFloorLine(featureGuid)
         outputFile.WriteLine line
     Next
     For i = 0 To noteCount - 1
         line = CsvEscape(SSProcess.GetSelNoteValue(i, "SSObj_ID")) & "," & CsvEscape(SSProcess.GetSelNoteValue(i, "SSObj_Code")) & "," & CsvEscape(SSProcess.GetSelNoteValue(i, "SSObj_LayerName")) & "," & "注记" & "," & "" & "," & "" & "," & "" & "," & CsvEscape(SSProcess.GetSelNoteValue(i, "SSObj_FontString"))
         memoData = SSProcess.GetSelNoteValue(i, "SSObj_MemoData")
         line = line & BuildExtLine(i, memoData, attrNames, attrCount, 1)
+        featureGuid = GetAttrValue(memoData, "FeatureGUID")
+        If featureGuid = "" Then
+            featureGuid = SSProcess.GetSelNoteValue(i, "[FeatureGUID]")
+        End If
+        line = line & BuildFloorLine(featureGuid)
         outputFile.WriteLine line
     Next
 
     outputFile.Close
-    MsgBox "导出完成！共处理 " & totalCount & " 个要素（地物 " & geoCount & "，注记 " & noteCount & "），导出 " & attrCount & " 个属性列，输出文件：" & outPath
+    MsgBox "导出完成！共处理 " & totalCount & " 个要素（地物 " & geoCount & "，注记 " & noteCount & "），扩展属性 " & attrCount & " 列，楼层字段 " & floorOutCount & " 列，输出文件：" & outPath
 End Sub
+
+' v5：通过 ADO 读取当前工程 EDB 的 [FC_楼层信息属性表]，加载到内存数组
+Sub LoadFloorTable(currentAttrStr)
+    Dim projFile, sysPath, fsoCheck, strConnect, adoConnection, adoRs
+    Dim ff, fr, fv, fo
+    floorLoaded = 0
+    floorCount = 0
+    floorFieldCount = 0
+    floorOutCount = 0
+
+    ' 获取当前工程文件（.edb）；若返回不含路径分隔符则用系统路径拼接
+    projFile = SSProcess.GetProjectFileName()
+    If InStr(projFile, "\") = 0 And InStr(projFile, "/") = 0 Then
+        sysPath = SSProcess.GetSysPathName(5)
+        If Right(sysPath, 1) <> "\" Then
+            sysPath = sysPath & "\"
+        End If
+        projFile = sysPath & projFile
+    End If
+
+    Set fsoCheck = CreateObject("Scripting.FileSystemObject")
+    If Not fsoCheck.FileExists(projFile) Then
+        MsgBox "未找到工程文件：" & projFile & Chr(13) & "跳过楼层表属性合并，继续导出"
+        Exit Sub
+    End If
+
+    ' 连接 EDB（Access 格式），读取 [FC_楼层信息属性表]
+    strConnect = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" & projFile & ";"
+    Set adoConnection = CreateObject("ADODB.Connection")
+    adoConnection.Open strConnect
+    Set adoRs = CreateObject("ADODB.Recordset")
+
+    ' 第一次：SELECT TOP 1 * 获取字段名
+    adoRs.Open "SELECT TOP 1 * FROM [FC_楼层信息属性表]", adoConnection, 0
+    If adoRs.Fields.Count > 200 Then
+        floorFieldCount = 200
+    Else
+        floorFieldCount = adoRs.Fields.Count
+    End If
+    For ff = 0 To floorFieldCount - 1
+        floorFieldNames(ff) = adoRs.Fields(ff).Name
+    Next
+    adoRs.Close
+
+    ' 第二次：SELECT * 读取全部记录到内存数组
+    Set adoRs = Nothing
+    Set adoRs = CreateObject("ADODB.Recordset")
+    adoRs.Open "SELECT * FROM [FC_楼层信息属性表]", adoConnection, 0
+    floorCount = 0
+    Do While Not adoRs.Eof
+        If floorCount < 300 Then
+            floorGuids(floorCount) = NormalizeGuid(CStr(adoRs.Fields("FeatureGUID").Value))
+            For fr = 0 To floorFieldCount - 1
+                fv = adoRs.Fields(fr).Value
+                If IsNull(fv) Then
+                    floorValues(floorCount, fr) = ""
+                Else
+                    floorValues(floorCount, fr) = CStr(fv)
+                End If
+            Next
+            floorCount = floorCount + 1
+        End If
+        adoRs.MoveNext
+    Loop
+    adoRs.Close
+    adoConnection.Close
+    Set adoRs = Nothing
+    Set adoConnection = Nothing
+
+    ' 字段去重：跳过与现有清单重复的字段（FeatureGUID、ZDGUID 等），构建输出列
+    floorOutCount = 0
+    For fo = 0 To floorFieldCount - 1
+        If InStr("|" & currentAttrStr & "|", "|" & floorFieldNames(fo) & "|") = 0 Then
+            floorOutNames(floorOutCount) = floorFieldNames(fo)
+            floorOutCols(floorOutCount) = fo
+            floorOutCount = floorOutCount + 1
+        End If
+    Next
+
+    floorLoaded = 1
+End Sub
+
+' v5：按 FeatureGUID 匹配楼层表记录，追加楼层字段值（含前导逗号）
+Function BuildFloorLine(featureGuid)
+    Dim line, guid, rowIdx, c, k
+    line = ""
+    If floorLoaded = 1 Then
+        guid = NormalizeGuid(featureGuid)
+        rowIdx = -1
+        For k = 0 To floorCount - 1
+            If floorGuids(k) = guid Then
+                rowIdx = k
+                Exit For
+            End If
+        Next
+        For c = 0 To floorOutCount - 1
+            If rowIdx >= 0 Then
+                line = line & "," & CsvEscape(floorValues(rowIdx, floorOutCols(c)))
+            Else
+                line = line & ","
+            End If
+        Next
+    End If
+    BuildFloorLine = line
+End Function
+
+' v5：GUID 归一化为小写无花括号格式
+Function NormalizeGuid(s)
+    NormalizeGuid = LCase(Replace(Replace(s, "{", ""), "}", ""))
+End Function
 
 Function CollectAttrNames(memoData, attrNamesStr)
     If memoData <> "" Then

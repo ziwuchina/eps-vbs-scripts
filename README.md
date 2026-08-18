@@ -2,12 +2,14 @@
 AIGC:
     Label: "1"
     ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 95ce5665a2763fbde4f792b4da682b54_3f954b05997f11f1a98a525400f8a581
-    ReservedCode1: cDAmQ+Oe1kd8sQpfvuPgxY6RZbQc2Qz76XblTWYFMqpj6VovGt7KZOXigH78K/Ss3SUYY6+BmxSSLNBokcDq1HDWKgh+F6uOnMnyejoqz6pJntKUh+b5YhE/1xRk4I1cmZQRUYSo7FQW3cqRrFSkd3t6IjHL11PtLO3a/ztxPcweyockXOqMeYp3g+k=
+    ProduceID: 95ce5665a2763fbde4f792b4da682b54_9dd9b5e7998211f19467525400287e28
+    ReservedCode1: o4KDbLPwPoMAVfvTnxn3OZmN8AZ/FVkRGaZmxBpV9s2AuyAqcX/fMetRthRhuGtQ9SFmy9pJHz2KLMo+LTg0mpT5AeAzeTeiUZnqapUBb2uX7zVmo0JdkVXExd/g+raAjLlAt6lo89/3zeXIgH2fvEvCBjaniP6y+gDrliKxNL7FWUDLG5aojz47h84=
     ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 95ce5665a2763fbde4f792b4da682b54_3f954b05997f11f1a98a525400f8a581
-    ReservedCode2: cDAmQ+Oe1kd8sQpfvuPgxY6RZbQc2Qz76XblTWYFMqpj6VovGt7KZOXigH78K/Ss3SUYY6+BmxSSLNBokcDq1HDWKgh+F6uOnMnyejoqz6pJntKUh+b5YhE/1xRk4I1cmZQRUYSo7FQW3cqRrFSkd3t6IjHL11PtLO3a/ztxPcweyockXOqMeYp3g+k=
+    PropagateID: 95ce5665a2763fbde4f792b4da682b54_9dd9b5e7998211f19467525400287e28
+    ReservedCode2: o4KDbLPwPoMAVfvTnxn3OZmN8AZ/FVkRGaZmxBpV9s2AuyAqcX/fMetRthRhuGtQ9SFmy9pJHz2KLMo+LTg0mpT5AeAzeTeiUZnqapUBb2uX7zVmo0JdkVXExd/g+raAjLlAt6lo89/3zeXIgH2fvEvCBjaniP6y+gDrliKxNL7FWUDLG5aojz47h84=
 ---
+
+
 
 # EPS VBS 脚本库
 
@@ -39,7 +41,7 @@ EPS2020 顺德基础地理测绘专版（云舟P）的 VBS 脚本集合，用于
 
 | 脚本 | 功能 | 状态 |
 |------|------|------|
-| [导出全部属性.vbs](导出全部属性.vbs) | 导出所选要素的全部属性（基本属性 + 全量扩展属性）为 CSV | 可用 |
+| [导出全部属性.vbs](导出全部属性.vbs) | 导出所选要素的全部属性（基本属性 + 全量扩展属性 + 楼层表属性）为 CSV | 可用（v5） |
 
 ---
 
@@ -51,6 +53,7 @@ EPS2020 顺德基础地理测绘专版（云舟P）的 VBS 脚本集合，用于
 
 - **基本属性**：ID、编码、图层、类型、颜色、面积、长度、注记文字
 - **全量扩展属性**：150+ 个字段（FeatureGUID、ZDGUID、LJZH、CH、SJC、KZMJ、JZMJ、GHJZMJ、JRMJ、YeWBH 等），覆盖 EPS 属性表「扩展属性」组全部字段，并自动合并选中要素中清单之外的额外属性
+- **楼层表属性**（v5 新增）：通过 ADO 读取当前工程 EDB 的 `[FC_楼层信息属性表]`（109 字段），按 FeatureGUID 匹配楼层并合并导出（各类型主要功能/公共服务设施/其他项目建筑面积及饰面、计容面积、不计容面积、CJZMJ/CTNJZMJ/CYTMJ/CGYJZMJ/CFTJZMJ/CBQMJ、基底面积、层数等），解决用户反馈的「EPS 属性表能看到但导不出」的楼层分项面积字段
 
 ### 使用说明
 
@@ -59,13 +62,15 @@ EPS2020 顺德基础地理测绘专版（云舟P）的 VBS 脚本集合，用于
 3. 参数对话框：
    - **要素类型**：POINT / LINE / AREA / NOTE / 全部（默认「全部」）
    - **导出范围**：选择集 / 全部（默认「选择集」，直接导出当前选中的要素）
+   - **合并楼层表属性**：是 / 否（默认「是」，v5 新增；开启后通过 ADO 读取当前工程 EDB 的 `[FC_楼层信息属性表]` 并按 FeatureGUID 合并楼层字段；EDB 不存在或连接失败时提示并自动降级为不合并继续导出）
    - **输出文件**：CSV 输出路径（默认 `C:\全部属性导出.csv`）
 4. 点击确定，脚本自动导出并提示完成
 
 ### 输出说明
 
-- CSV 表头 = 基本属性列 + 全量扩展属性清单 + 动态发现的额外属性
+- CSV 表头 = 基本属性列 + 全量扩展属性清单 + 动态发现的额外属性 + 楼层表字段（开启合并时，与现有清单重复的 FeatureGUID / ZDGUID / ZRZGUID / LJZGUID / LCGUID / LJZH / CH / SJC / MYC / DJH / ZRZH / ZDDM / JGJG / CG / DYBLC 等字段自动去重，不重复加列）
 - 每个要素一行；要素没有的字段留空
+- 楼层匹配按 FeatureGUID（小写、去花括号）；匹配不到输出空值占位，保持列结构完整
 - 含逗号 / 引号 / 换行的字段自动做 CSV 转义
 
 ### 实现要点
@@ -74,6 +79,7 @@ EPS2020 顺德基础地理测绘专版（云舟P）的 VBS 脚本集合，用于
 - **MemoData 动态枚举**：遍历选中要素的 `SSObj_MemoData`，自动合并清单之外的属性名，防止遗漏
 - **双通道取值**：每个字段先解析 MemoData（属性名不带括号），取不到再用 `GetSelGeoValue(i, "[字段名]")`（带括号）兜底，确保 GUID 类等不在 MemoData 里的字段也能导出
 - **选择集模式不清空选择**：直接 `UpdateSysSelection 0` 读取当前系统选择，避免 `ClearSelection` 清掉用户已选要素
+- **楼层表合并（v5）**：`SSProcess.GetProjectFileName()` 取当前工程 EDB 路径（无分隔符则 `GetSysPathName(5)` 拼接），`ADODB.Connection` + `Provider=Microsoft.ACE.OLEDB.12.0` 连接，先 `SELECT TOP 1 *` 取字段名、再 `SELECT *` 一次性读入固定数组（`floorGuids(300)` / `floorValues(300,200)`）；要素 FeatureGUID 优先从 MemoData 解析、无则 `GetSelGeoValue(i,"[FeatureGUID]")`
 
 ---
 
@@ -245,8 +251,9 @@ EPS 脚本「点了没反应」排查两步法：
 A：先查编码（必须 GBK），再查是否用了规避语法（Dictionary / Call / On Error / vbCrLf / ByRef）。
 
 **Q：导出的属性列太少？**
-A：确认用的是全属性版（v4）。旧版只动态枚举选中要素实际存在的字段，新版硬编码全量清单 + 动态合并。
+A：确认用的是全属性版（v5）。旧版只动态枚举选中要素实际存在的字段，v5 硬编码全量清单 + 动态合并 + 楼层表合并（记得参数「合并楼层表属性」选「是」）。
 
 **Q：选择集模式导不出东西？**
 A：确认在 EPS 中已框选要素；选择集模式不清空选择，直接读取当前系统选择。
+*（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
